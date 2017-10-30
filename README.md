@@ -32,6 +32,18 @@ optional arguments:
                         enabled)
 ```
 
+## Notes and considerations
+**Stop words**
+
+I elected to enable filtering of "stop words" by default, since the output seemed much less useful with them included. To disable this default filtering, the "-d" flag can be used.
+
+**Splitting text**
+
+Handling all the potential cases of ways sentences can be separated seemed like a sufficiently nontrivial but rote problem to warrant the use of a well-tested solution, hence the inclusion of NLTK. For splitting sentences into words, the simplest solution of splitting on spaces (and stripping whitespace+punctuation) works well enough.
+
+**text_utils.py**
+
+The details of text-processing used in this program were extracted to text_utils.py to allow for easy swapping in case of changes to tokenization, normalization, or stop word specifications.
 
 ## Attribution
 Default stop words courtesy of https://www.textfixer.com/tutorials/common-english-words.php
