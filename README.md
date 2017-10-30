@@ -1,10 +1,12 @@
 Written using Python 3.6 on OS X.
 
 # setup (in project root with virtualenv active)
+```bash
 pip install -r requirements.txt
 mkdir nltk_data
 export NLTK_DATA=${PWD}/nltk_data
 python setup_nltk.py
+```
 
 # running the script
 usage: create_hashtags.py [-h] [-d] [-s STOP_WORDS_FILE]
