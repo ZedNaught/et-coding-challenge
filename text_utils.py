@@ -26,5 +26,6 @@ def split_into_words(text):
 
 
 def get_default_stop_words():
-    from nltk.corpus import stopwords
-    return stopwords.words('english')
+    with open('default_stop_words.txt', 'r', encoding='utf8') as f:
+        stop_words = [word.strip() for word in f.read().split(',')]
+    return stop_words

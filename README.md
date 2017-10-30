@@ -31,3 +31,7 @@ optional arguments:
                         be used (in addition to default stop words, if
                         enabled)
 ```
+
+
+## Attribution
+Default stop words courtesy of https://www.textfixer.com/tutorials/common-english-words.php
