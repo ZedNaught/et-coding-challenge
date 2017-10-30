@@ -24,9 +24,11 @@ optional arguments:
 """
 
 import argparse
+import functools
 import json
 import os
 import reprlib
+import sys
 
 import text_utils
 
@@ -35,7 +37,7 @@ __author__ = "Alexander Reyes"
 __email__ = "alex.reyes.inbox@gmail.com"
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description="Counts word frequency across input documents and remembers the documents and sentences in which the words occurred. Results are output as JSON.")
     parser.add_argument('input_dir',
                         help="directory containing input txt files")
@@ -45,10 +47,10 @@ def main():
                         help="by default, a list of \"stop words\" is used to exclude common words from the output; use this flag to include them")
     parser.add_argument('-s', '--stop-words-file',
                         help="name of file containing comma-separated stop words to be used (in addition to default stop words, if enabled)")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # process args and perform related setup
-    input_dir_entries = [entry for entry in os.scandir(args.input_dir) if entry.name.endswith('.txt')]
+    documents = get_document_dicts(args.input_dir)
     stop_words = []
     if not args.disable_default_stop_words:
         stop_words += list(text_utils.get_default_stop_words())
@@ -56,9 +58,24 @@ def main():
         with open(args.stop_words_file, 'r', encoding='utf8') as f:
             stop_words += [word.strip() for word in f.read().split(',')]
 
-    hc = HashtagCreator(input_dir_entries, stop_words=stop_words)
+    hc = HashtagCreator(documents, stop_words=stop_words)
     hc.create_hashtags()
     hc.output_results_to_file(args.output_filename)
+
+
+def get_document_dicts(input_dir):
+    input_dir_entries = [entry for entry in os.scandir(input_dir) if entry.name.endswith('.txt')]
+
+    def _get_document_text(filepath):
+        with open(filepath, 'r', encoding='utf8') as f:
+            return f.read()
+
+    documents = [{
+        'name': dir_entry.name,
+        'get_text': functools.partial(_get_document_text, dir_entry.path),
+    } for dir_entry in input_dir_entries]
+
+    return documents
 
 
 class HashtagResult:
@@ -139,11 +156,11 @@ class HashtagCreator:
     """
     def __repr__(self):
         return '<HashtagCreator({input_filepaths}, stop_words={stop_words})>'.format(
-            input_filepaths=reprlib.repr([entry.path for entry in self._input_dir_entries]),
+            input_filepaths=reprlib.repr([document['name'] for document in self._documents]),
             stop_words=reprlib.repr([self._stop_words]))
 
-    def __init__(self, input_dir_entries, stop_words=None):
-        self._input_dir_entries = input_dir_entries
+    def __init__(self, documents, stop_words=None):
+        self._documents = documents
         self._results = {}
         self._stop_words = set(stop_words) if stop_words is not None else set()
 
@@ -157,13 +174,11 @@ class HashtagCreator:
         return sorted(self._results.values(), key=lambda result: (-result.count, result.word))
 
     def create_hashtags(self):
-        for dir_entry in self._input_dir_entries:
-            self.process_file_hashtags(dir_entry)
+        for document in self._documents:
+            self.process_document_hashtags(document)
 
-    def process_file_hashtags(self, dir_entry):
-        with open(dir_entry.path, 'r', encoding='utf8') as f:
-            file_text = f.read()
-        sentences = text_utils.split_into_sentences(file_text)
+    def process_document_hashtags(self, document):
+        sentences = text_utils.split_into_sentences(document['get_text']())
         for sentence in sentences:
             raw_words = text_utils.split_into_words(sentence)
             normalized_words = map(text_utils.normalize_word, raw_words)
@@ -172,12 +187,15 @@ class HashtagCreator:
                 normalized_words)
             for word in filtered_normalized_words:
                 hashtag_result = self._get_hashtag_result(word)
-                hashtag_result.add_occurrence(dir_entry.name, sentence)
+                hashtag_result.add_occurrence(document['name'], sentence)
 
-    def output_results_to_file(self, filename):
-        results_table = [
+    def get_results_table(self):
+        return [
             result.as_serializable_dict() for result in self._get_sorted_results()
         ]
+
+    def output_results_to_file(self, filename):
+        results_table = self.get_results_table()
         output_dict = {
             'stop_words': sorted(self._stop_words),
             'results': results_table,
@@ -187,4 +205,4 @@ class HashtagCreator:
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
